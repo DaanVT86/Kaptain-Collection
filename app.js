@@ -2527,6 +2527,9 @@ async function uploadForBingecat() {
 // Sends whatever is currently selected through the same compatibility gate as
 // the other export actions, since view mode is written into the payload.
 function exportForBingecat() {
+  // The compatibility dialog uses a lower z-index than the Quick Editor.
+  // Close the editor before opening it so its controls remain clickable.
+  document.getElementById('simple-editor-overlay')?.classList.remove('open');
   ensureMobileCompat(uploadForBingecat, { checkTmdb: false });
 }
 
