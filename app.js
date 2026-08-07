@@ -2471,6 +2471,10 @@ function computeExportViewMode(optimize) {
 // saved, not just on the title screen. Distinct from the Bingecat "For You"
 // integration in the wizard, which is a different feature entirely.
 const BINGECAT_LOGO_SRC = 'assets/bingecat-logo.png';
+const BINGECAT_IMPORT_ENDPOINT = String(
+  window.KAPTAIN_BINGECAT_IMPORT_ENDPOINT
+    || 'https://dev.bingecat.com/integrations/kaptain/collections'
+).trim();
 
 // Renders as the real logo when the asset exists and silently degrades to a
 // glyph when it doesn't, so a missing file never shows a broken image.
@@ -2478,10 +2482,52 @@ function bingecatMarkHtml(extraClass) {
   return `<span class="bingecat-mark ${extraClass || ''}"><img src="${BINGECAT_LOGO_SRC}" alt="" onerror="this.parentNode.classList.add('no-logo');this.remove();"></span>`;
 }
 
-// Exports whatever is currently selected. Same compat gate as the other Save
-// File buttons, since view mode is written into the file either way.
+// Upload the current selection to BingeCat and continue through its login or
+// onboarding flow. The server returns an opaque handoff URL, so collection
+// contents never appear in the browser URL or a referrer.
+async function uploadForBingecat() {
+  const customConfig = assembleFilteredDatabase();
+  if (!customConfig.length) {
+    showToast('Pick at least one folder before sending to BingeCat.', 'error');
+    return;
+  }
+  if (!BINGECAT_IMPORT_ENDPOINT) {
+    showToast('BingeCat import is not configured for this preview.', 'error');
+    return;
+  }
+  try {
+    const response = await fetch(BINGECAT_IMPORT_ENDPOINT, {
+      method: 'POST',
+      mode: 'cors',
+      credentials: 'omit',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(customConfig),
+    });
+    let data = {};
+    try {
+      data = await response.json();
+    } catch (_error) {
+      data = {};
+    }
+    if (!response.ok || !data.success) {
+      throw new Error(String(data.error || 'BingeCat could not receive this collection.'));
+    }
+    const continueUrl = String(data.continue_url || '').trim();
+    if (!continueUrl) throw new Error('BingeCat did not return a continuation URL.');
+    showToast('Opening BingeCat import...', 'success');
+    window.location.assign(continueUrl);
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : 'BingeCat import failed.', 'error');
+  }
+}
+
+// Sends whatever is currently selected through the same compatibility gate as
+// the other export actions, since view mode is written into the payload.
 function exportForBingecat() {
-  ensureMobileCompat(compileAndDownloadJSON, { checkTmdb: false });
+  ensureMobileCompat(uploadForBingecat, { checkTmdb: false });
 }
 
 // From the title screen nothing has been curated yet, so asking beats
@@ -2493,15 +2539,15 @@ function showBingecatStartChoice() {
   overlay.innerHTML = `
     <div class="popup-panel bc-choice-panel" role="dialog" aria-modal="true" aria-labelledby="bc-choice-title">
       ${bingecatMarkHtml('bc-choice-mark bingecat-mark--full')}
-      <h3 class="popup-title" id="bc-choice-title">Export for Bingecat</h3>
-      <p class="bc-choice-note">Bingecat runs your lists through its own addon for cached results, ratings and artwork. What should it get?</p>
+      <h3 class="popup-title" id="bc-choice-title">Send to BingeCat</h3>
+      <p class="bc-choice-note">BingeCat runs your lists through its own addon for cached results, ratings and artwork. What should it get?</p>
       <button type="button" class="bc-choice-opt" id="bc-choice-full">
         <span class="bc-choice-opt-title">Full Mega Collection</span>
-        <span class="bc-choice-opt-desc">Every folder we have. Download it now and curate inside Bingecat.</span>
+        <span class="bc-choice-opt-desc">Every folder we have. Upload it now and curate inside BingeCat.</span>
       </button>
       <button type="button" class="bc-choice-opt" id="bc-choice-edit">
         <span class="bc-choice-opt-title">Edit first</span>
-        <span class="bc-choice-opt-desc">Pick what you want here, then export to Bingecat when you're happy with it.</span>
+        <span class="bc-choice-opt-desc">Pick what you want here, then send it to BingeCat when you're happy with it.</span>
       </button>
       <button type="button" class="bc-choice-cancel" id="bc-choice-cancel">Cancel</button>
     </div>`;
@@ -2529,7 +2575,7 @@ function showBingecatStartChoice() {
   overlay.querySelector('#bc-choice-edit').addEventListener('click', () => {
     dismiss();
     hideTitleScreen();
-    showToast('Pick what you want, then hit "Bingecat" in the bar below to export.', 'success');
+    showToast('Pick what you want, then hit "Send to BingeCat" in the bar below.', 'success');
   });
 }
 
