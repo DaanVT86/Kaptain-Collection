@@ -1235,9 +1235,9 @@ function renderPreviewCollection() {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="width:13px;height:13px;"><polyline points="8 17 12 21 16 17"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"></path></svg>
         <span>Save File</span>
       </button>
-      <button class="btn-secondary nv-mini-btn btn-bingecat" id="preview-bingecat" title="Export this selection for Bingecat's addon">
+      <button class="btn-secondary nv-mini-btn btn-bingecat" id="preview-bingecat" title="Open this selection in BingeCat">
         ${bingecatMarkHtml()}
-        <span>Bingecat</span>
+        <span>Open in BingeCat</span>
       </button>
       <button class="btn-primary nv-mini-btn" id="preview-send" title="Send your collection straight to Nuvio">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><polyline points="8 11 12 7 16 11"/><line x1="12" y1="7" x2="12" y2="14"/></svg>
@@ -2208,7 +2208,7 @@ function bindPreviewControls() {
   document.getElementById('preview-help')?.addEventListener('click', () => toggleShortcutPanel(true));
   const dl = document.getElementById('preview-download');
   if (dl) dl.addEventListener('click', () => ensureMobileCompat(compileAndDownloadJSON, { checkTmdb: false }));
-  document.getElementById('preview-bingecat')?.addEventListener('click', exportForBingecat);
+  document.getElementById('preview-bingecat')?.addEventListener('click', openBingecat);
   const send = document.getElementById('preview-send');
   if (send) send.addEventListener('click', () => {
     if (window.NuvioWizard && typeof window.NuvioWizard.open === 'function') window.NuvioWizard.open();
@@ -2473,7 +2473,7 @@ function computeExportViewMode(optimize) {
 const BINGECAT_LOGO_SRC = 'assets/bingecat-logo.png';
 const BINGECAT_IMPORT_ENDPOINT = String(
   window.KAPTAIN_BINGECAT_IMPORT_ENDPOINT
-    || 'https://dev.bingecat.com/integrations/kaptain/collections'
+    || 'https://bingecat.com/integrations/kaptain/collections'
 ).trim();
 
 // Renders as the real logo when the asset exists and silently degrades to a
@@ -2524,13 +2524,19 @@ async function uploadForBingecat() {
   }
 }
 
-// Sends whatever is currently selected through the same compatibility gate as
-// the other export actions, since view mode is written into the payload.
-function exportForBingecat() {
+// Opens BingeCat with whatever is currently selected through the same
+// compatibility gate as the other export actions.
+function openBingecat() {
   // The compatibility dialog uses a lower z-index than the Quick Editor.
   // Close the editor before opening it so its controls remain clickable.
   document.getElementById('simple-editor-overlay')?.classList.remove('open');
   ensureMobileCompat(uploadForBingecat, { checkTmdb: false });
+}
+
+// Keep the original title-screen export flow: it downloads a regular
+// collection file so users can curate it elsewhere or import it manually.
+function exportForBingecat() {
+  ensureMobileCompat(compileAndDownloadJSON, { checkTmdb: false });
 }
 
 // From the title screen nothing has been curated yet, so asking beats
@@ -2542,15 +2548,15 @@ function showBingecatStartChoice() {
   overlay.innerHTML = `
     <div class="popup-panel bc-choice-panel" role="dialog" aria-modal="true" aria-labelledby="bc-choice-title">
       ${bingecatMarkHtml('bc-choice-mark bingecat-mark--full')}
-      <h3 class="popup-title" id="bc-choice-title">Send to BingeCat</h3>
-      <p class="bc-choice-note">BingeCat runs your lists through its own addon for cached results, ratings and artwork. What should it get?</p>
+      <h3 class="popup-title" id="bc-choice-title">Export for Bingecat</h3>
+      <p class="bc-choice-note">Bingecat runs your lists through its own addon for cached results, ratings and artwork. What should it get?</p>
       <button type="button" class="bc-choice-opt" id="bc-choice-full">
         <span class="bc-choice-opt-title">Full Mega Collection</span>
-        <span class="bc-choice-opt-desc">Every folder we have. Upload it now and curate inside BingeCat.</span>
+        <span class="bc-choice-opt-desc">Every folder we have. Download it now and curate inside Bingecat.</span>
       </button>
       <button type="button" class="bc-choice-opt" id="bc-choice-edit">
         <span class="bc-choice-opt-title">Edit first</span>
-        <span class="bc-choice-opt-desc">Pick what you want here, then send it to BingeCat when you're happy with it.</span>
+        <span class="bc-choice-opt-desc">Pick what you want here, then export to Bingecat when you're happy with it.</span>
       </button>
       <button type="button" class="bc-choice-cancel" id="bc-choice-cancel">Cancel</button>
     </div>`;
@@ -2578,7 +2584,7 @@ function showBingecatStartChoice() {
   overlay.querySelector('#bc-choice-edit').addEventListener('click', () => {
     dismiss();
     hideTitleScreen();
-    showToast('Pick what you want, then hit "Send to BingeCat" in the bar below.', 'success');
+    showToast('Pick what you want, then hit "Open in BingeCat" in the bar below.', 'success');
   });
 }
 
@@ -2907,7 +2913,7 @@ function bindGlobalEvents() {
   // Download button (gated by the mobile-compatibility check)
   const btnCompile = document.getElementById('btn-compile-download');
   if (btnCompile) btnCompile.addEventListener('click', () => ensureMobileCompat(compileAndDownloadJSON, { checkTmdb: false }));
-  document.getElementById('btn-bingecat-export')?.addEventListener('click', exportForBingecat);
+  document.getElementById('btn-bingecat-export')?.addEventListener('click', openBingecat);
 
   // Mobile-only FAB — collapses the Browse bar (stats + Download + Send to
   // Nuvio) behind one button on phones. The bar's own DOM is static (never
@@ -3584,7 +3590,7 @@ function bindSimpleEditorEvents() {
   document.getElementById('se-send')?.addEventListener('click', seSend);
   document.getElementById('se-bingecat')?.addEventListener('click', () => {
     seGatherSettings();   // keep anything typed in the settings panel
-    exportForBingecat();
+    openBingecat();
   });
   document.getElementById('se-search')?.addEventListener('input', renderSimpleCollection);
   document.getElementById('se-all')?.addEventListener('click', () => { database.forEach((_, ci) => seSetCategory(ci, true)); renderSimpleCollection(); });
