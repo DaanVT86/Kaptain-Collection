@@ -9,7 +9,7 @@
   <meta name="keywords" content="Nuvio, Stremio, Nuvio Art, Plex, Custom Media Poster, Stremio Guide, Kaptain Collection">
   <meta name="author" content="ImKaptain">
   
-  <link rel="stylesheet" href="style.css?v=41">
+  <link rel="stylesheet" href="style.css?v=42">
 </head>
 <body>
 
@@ -96,9 +96,9 @@
         <button id="se-all" class="se-mini-btn">All</button>
         <button id="se-none" class="se-mini-btn">None</button>
         <button id="se-cinematic" class="se-mini-btn" title="Switch back to the Cinematic Editor">🎬 Cinematic Editor</button>
-        <button id="se-bingecat" class="se-mini-btn se-bingecat-btn" title="Open this selection in BingeCat">
+        <button id="se-bingecat" class="se-mini-btn se-bingecat-btn" title="Export this selection for Bingecat's addon">
           <span class="bingecat-mark"><img src="assets/bingecat-logo.png" alt="" onerror="this.parentNode.classList.add('no-logo');this.remove();"></span>
-          <span>Open in BingeCat</span>
+          <span>Bingecat</span>
         </button>
         <button id="se-send" class="se-send-btn">Send to Nuvio</button>
       </div>
@@ -282,9 +282,9 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="width:14px;height:14px;"><polyline points="8 17 12 21 16 17"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"></path></svg>
               <span>Save File</span>
             </button>
-            <button id="btn-bingecat-export" class="btn-secondary btn-bingecat" title="Open this selection in BingeCat">
+            <button id="btn-bingecat-export" class="btn-secondary btn-bingecat" title="Export this selection for Bingecat's addon">
               <span class="bingecat-mark"><img src="assets/bingecat-logo.png" alt="" onerror="this.parentNode.classList.add('no-logo');this.remove();"></span>
-              <span>Open in BingeCat</span>
+              <span>Bingecat</span>
             </button>
             <button id="btn-send-to-nuvio" class="btn-primary" title="Send your collection straight to your Nuvio account" style="position:relative;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><polyline points="8 11 12 7 16 11"/><line x1="12" y1="7" x2="12" y2="14"/></svg>
@@ -555,7 +555,7 @@
   <script>
     window.KAPTAIN_BINGECAT_IMPORT_ENDPOINT = 'https://bingecat.com/integrations/kaptain/collections';
   </script>
-  <script src="app.js?v=44"></script>
+  <script src="app.js?v=45"></script>
   <script src="nuvio-push.js?v=7"></script>
   <script>window.KAPTAIN_ASSET_VERSION = 46;</script>
   <script src="wizard.js?v=45"></script>

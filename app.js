@@ -1235,9 +1235,9 @@ function renderPreviewCollection() {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="width:13px;height:13px;"><polyline points="8 17 12 21 16 17"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"></path></svg>
         <span>Save File</span>
       </button>
-      <button class="btn-secondary nv-mini-btn btn-bingecat" id="preview-bingecat" title="Open this selection in BingeCat">
+      <button class="btn-secondary nv-mini-btn btn-bingecat" id="preview-bingecat" title="Export this selection for Bingecat's addon">
         ${bingecatMarkHtml()}
-        <span>Open in BingeCat</span>
+        <span>Bingecat</span>
       </button>
       <button class="btn-primary nv-mini-btn" id="preview-send" title="Send your collection straight to Nuvio">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><polyline points="8 11 12 7 16 11"/><line x1="12" y1="7" x2="12" y2="14"/></svg>
@@ -2208,7 +2208,7 @@ function bindPreviewControls() {
   document.getElementById('preview-help')?.addEventListener('click', () => toggleShortcutPanel(true));
   const dl = document.getElementById('preview-download');
   if (dl) dl.addEventListener('click', () => ensureMobileCompat(compileAndDownloadJSON, { checkTmdb: false }));
-  document.getElementById('preview-bingecat')?.addEventListener('click', openBingecat);
+  document.getElementById('preview-bingecat')?.addEventListener('click', exportForBingecat);
   const send = document.getElementById('preview-send');
   if (send) send.addEventListener('click', () => {
     if (window.NuvioWizard && typeof window.NuvioWizard.open === 'function') window.NuvioWizard.open();
@@ -2485,8 +2485,7 @@ function bingecatMarkHtml(extraClass) {
 // Upload the current selection to BingeCat and continue through its login or
 // onboarding flow. The server returns an opaque handoff URL, so collection
 // contents never appear in the browser URL or a referrer.
-async function uploadForBingecat() {
-  const customConfig = assembleFilteredDatabase();
+async function uploadForBingecat(customConfig = assembleFilteredDatabase()) {
   if (!customConfig.length) {
     showToast('Pick at least one folder before sending to BingeCat.', 'error');
     return;
@@ -2522,15 +2521,6 @@ async function uploadForBingecat() {
   } catch (error) {
     showToast(error instanceof Error ? error.message : 'BingeCat import failed.', 'error');
   }
-}
-
-// Opens BingeCat with whatever is currently selected through the same
-// compatibility gate as the other export actions.
-function openBingecat() {
-  // The compatibility dialog uses a lower z-index than the Quick Editor.
-  // Close the editor before opening it so its controls remain clickable.
-  document.getElementById('simple-editor-overlay')?.classList.remove('open');
-  ensureMobileCompat(uploadForBingecat, { checkTmdb: false });
 }
 
 // Keep the original title-screen export flow: it downloads a regular
@@ -2584,7 +2574,7 @@ function showBingecatStartChoice() {
   overlay.querySelector('#bc-choice-edit').addEventListener('click', () => {
     dismiss();
     hideTitleScreen();
-    showToast('Pick what you want, then hit "Open in BingeCat" in the bar below.', 'success');
+    showToast('Pick what you want, then hit "Bingecat" in the bar below to export.', 'success');
   });
 }
 
@@ -2595,7 +2585,8 @@ function formatFileSize(bytes) {
 }
 
 // Shows what's about to land in the Downloads folder before it lands there.
-// Resolves true to proceed, false to cancel.
+// Resolves "save" or "bingecat" for the selected action, and null when
+// canceled.
 function confirmDownload({ filename, folders, sources, bytes }) {
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
@@ -2610,10 +2601,14 @@ function confirmDownload({ filename, folders, sources, bytes }) {
             <span class="dl-confirm-meta">${folders} folder${folders === 1 ? '' : 's'} · ${sources} source${sources === 1 ? '' : 's'} · ${formatFileSize(bytes)}</span>
           </div>
         </div>
-        <p class="dl-confirm-note">It'll go to your usual Downloads folder. You import it into Nuvio yourself afterwards.</p>
+        <p class="dl-confirm-note">Save it to your usual Downloads folder, or open this selection in BingeCat.</p>
         <div class="dl-confirm-actions">
           <button type="button" class="dl-confirm-cancel" id="dl-confirm-cancel">Cancel</button>
           <button type="button" class="dl-confirm-go" id="dl-confirm-go">Save file</button>
+          <button type="button" class="dl-confirm-bingecat" id="dl-confirm-bingecat">
+            ${bingecatMarkHtml()}
+            <span>Open in BingeCat</span>
+          </button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -2632,11 +2627,12 @@ function confirmDownload({ filename, folders, sources, bytes }) {
       setTimeout(() => overlay.remove(), 220);
       resolve(result);
     };
-    const onKey = (e) => { if (e.key === 'Escape') finish(false); };
+    const onKey = (e) => { if (e.key === 'Escape') finish(null); };
     document.addEventListener('keydown', onKey);
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) finish(false); });
-    overlay.querySelector('#dl-confirm-cancel').addEventListener('click', () => finish(false));
-    overlay.querySelector('#dl-confirm-go').addEventListener('click', () => finish(true));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) finish(null); });
+    overlay.querySelector('#dl-confirm-cancel').addEventListener('click', () => finish(null));
+    overlay.querySelector('#dl-confirm-go').addEventListener('click', () => finish('save'));
+    overlay.querySelector('#dl-confirm-bingecat').addEventListener('click', () => finish('bingecat'));
   });
 }
 
@@ -2654,10 +2650,14 @@ async function compileAndDownloadJSON(skipConfirm) {
       folders += 1;
       sources += (f.sources || []).length;
     }));
-    const proceed = await confirmDownload({
+    const action = await confirmDownload({
       filename, folders, sources, bytes: new Blob([json]).size,
     });
-    if (!proceed) return;
+    if (action === 'bingecat') {
+      await uploadForBingecat(customConfig);
+      return;
+    }
+    if (action !== 'save') return;
   }
 
   const popup = document.getElementById('popup-overlay');
@@ -2913,7 +2913,7 @@ function bindGlobalEvents() {
   // Download button (gated by the mobile-compatibility check)
   const btnCompile = document.getElementById('btn-compile-download');
   if (btnCompile) btnCompile.addEventListener('click', () => ensureMobileCompat(compileAndDownloadJSON, { checkTmdb: false }));
-  document.getElementById('btn-bingecat-export')?.addEventListener('click', openBingecat);
+  document.getElementById('btn-bingecat-export')?.addEventListener('click', exportForBingecat);
 
   // Mobile-only FAB — collapses the Browse bar (stats + Download + Send to
   // Nuvio) behind one button on phones. The bar's own DOM is static (never
@@ -3590,7 +3590,7 @@ function bindSimpleEditorEvents() {
   document.getElementById('se-send')?.addEventListener('click', seSend);
   document.getElementById('se-bingecat')?.addEventListener('click', () => {
     seGatherSettings();   // keep anything typed in the settings panel
-    openBingecat();
+    exportForBingecat();
   });
   document.getElementById('se-search')?.addEventListener('input', renderSimpleCollection);
   document.getElementById('se-all')?.addEventListener('click', () => { database.forEach((_, ci) => seSetCategory(ci, true)); renderSimpleCollection(); });
